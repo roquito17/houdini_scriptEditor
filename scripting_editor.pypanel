@@ -1,0 +1,378 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pythonPanelDocument>
+  <!-- This file contains definitions of Python interfaces and the
+ interfaces menu.  It should not be hand-edited when it is being
+ used by the application.  Note, that two definitions of the
+ same interface or of the interfaces menu are not allowed
+ in a single file. -->
+  <interface name="scripter" label="Scripting Editor" icon="MISC_python" showNetworkNavigationBar="false" help_url="">
+    <script><![CDATA[########################################################################
+# Replace the sample code below with your own to create a
+# PyQt5 or PySide2 interface.  Your code must define an
+# onCreateInterface() function that returns the root widget of
+# your interface.
+#
+# The 'hutil.Qt' is for internal-use only.
+# It is a wrapper module that enables the sample code below to work with
+# either a Qt4 or Qt5 environment for backwards-compatibility.
+#
+# When developing your own Python Panel, import directly from PySide2
+# or PyQt5 instead of from 'hutil.Qt'.
+########################################################################
+
+#
+# SAMPLE CODE
+#
+import shutil, os, fnmatch
+
+from hutil.Qt import QtWidgets
+try:
+    import pyEditorStylesheet as stylesheet
+    reload(pyEditorStylesheet)
+
+except:
+    #print("Error loading Script Editor stylesheet. Make sure the location is in sys.path")
+    pass
+    
+import sys, os
+sys.path.append("/user_data/temp/")
+
+tempScript = "/user_data/temp/houScriptEditor.py"
+scriptFolder = "/user_data/temp/houdiniPyEditorScripts"
+
+if not os.path.isdir(scriptFolder):
+    os.makedirs(scriptFolder)
+
+class PythonScriptEditor(QtWidgets.QWidget):
+    def __init__(self):
+        super(PythonScriptEditor, self).__init__()
+        self.isDirty = False
+        self.isSaved = True
+        self.prevIndex = -1
+        self.loaded = True
+        self.init = True
+        #print("Init")        
+
+        textBox = QtWidgets.QPlainTextEdit()
+        longline = ""
+        if os.path.exists(tempScript):
+            #self.populate(script)
+            f = open(tempScript, "r")
+            lines = f.readlines()
+
+            for l in lines:
+                longline += l
+
+            f.close()
+            textBox.setPlainText(longline)
+        
+        else:
+            textBox.setPlainText("import os")
+            
+        textBox.setObjectName("textBox")
+        textBox.adjustSize()
+        
+        utilities = QtWidgets.QHBoxLayout()
+        utilities.setObjectName("utilities")
+        
+        runBtn = QtWidgets.QPushButton("Run")
+
+        loadList = QtWidgets.QComboBox()
+        loadList.setObjectName("loadList")
+        #print(dir(loadList))
+        saveBtn = QtWidgets.QPushButton("Clear")
+        #saveBtn.setEnabled(False)
+        saveBtn.setObjectName("saveBtn")
+        
+        #print("saveBtn", dir(saveBtn))
+
+        stringObj = QtWidgets.QLineEdit()
+        stringObj.setEnabled(False)
+        stringObj.setObjectName("stringObj")
+        
+        #self.sendBtn = QtWidgets.QPushButton("Send")
+        #self.recipient = QtWidgets.QComboBox()
+        #self.recipient.setEditable(True)
+        
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(textBox)
+
+        
+        utilities.addWidget(runBtn)
+        utilities.addWidget(loadList)
+        utilities.addWidget(saveBtn)
+        utilities.addWidget(stringObj)
+        #utilities.addWidget(self.sendBtn)
+        #utilities.addWidget(self.recipient)
+        #self.recipient.setMinimumContentsLength(5)
+        
+        layout.addLayout(utilities)
+        self.initLoad(loadList)
+        width = loadList.sizeHint().width()
+        loadList.setMinimumWidth(width + 15)
+        self.setLayout(layout)
+        runBtn.clicked.connect(self.run)
+        saveBtn.clicked.connect(self.save)
+        loadList.currentIndexChanged.connect(self.load)
+        #self.sendBtn.clicked.connect(self.send)
+        #self.recipient.editTextChanged.connect(self.reset)
+        #users = os.path.join(scriptFolder, "users.txt")
+        #if os.path.isfile(users):
+        #    self.loadUsers()
+        #else:
+        #    f = open(users, "w")
+        #    f.close()
+
+        try:
+            highlight = stylesheet.PythonHighlighter(textBox.document())
+        except:
+            pass
+
+            
+        if not self.isDirty:
+            textBox.textChanged.connect(self.dirty)
+            
+        textBox.setPlainText(longline)
+        
+    def dirty(self):
+        textBox = self.findChild(QtWidgets.QPlainTextEdit, "textBox")
+
+        if not self.isSaved and not self.loaded:
+            self.loaded = False
+            list = self.findChild(QtWidgets.QComboBox, "loadList")
+            index = list.currentIndex()
+            item = list.model().item(index)
+            text = item.text()
+
+            if (index != 0) and (index != list.count()-1) and ("*" not in text) and not self.isDirty:
+                item.setText(text + "*")
+                self.isDirty = True
+        else: #this is a really awful hack but I don't know my way around the signals well enough yet. When the initial text field is loaded the widget gets marked dirty without user input
+            if not self.init:
+                self.loaded = False
+                self.isSaved = False
+            else:
+                self.init = False
+                
+    def load(self):
+        #print("Load")
+        self.isDirty = False
+        list = self.findChild(QtWidgets.QComboBox, "loadList")
+        textBox = self.findChild(QtWidgets.QPlainTextEdit, "textBox")
+        saveBtn = self.findChild(QtWidgets.QPushButton, "saveBtn")
+        stringObj = self.findChild(QtWidgets.QLineEdit, "stringObj")
+        saveBtn.setEnabled(False)
+        stringObj.setEnabled(False)
+        index = list.currentIndex()
+        if list.currentIndex() == (list.count() - 1):
+            saveBtn.setEnabled(True)
+            saveBtn.setText("Save")
+            stringObj.setEnabled(True)            
+            
+        elif list.currentIndex() != 0:
+            saveBtn.setEnabled(True)
+            f = open(os.path.join(scriptFolder, list.currentText()), "r")
+            lines = f.readlines()
+            longline = ""
+            for l in lines:
+                longline += l
+            textBox.setPlainText(longline)
+            f.close()
+            
+            saveBtn.setText("Delete")
+            stringObj.setText(list.currentText().split(".py")[0])
+        elif list.currentIndex() == 0:
+            saveBtn.setEnabled(True)
+            saveBtn.setText("Clear")
+        if self.prevIndex != -1:
+            oldText = list.itemText(self.prevIndex)
+            if "*" in oldText:
+                oldText = oldText[:-1]
+            list.setItemText(self.prevIndex, oldText)
+
+
+        oldText = list.itemText(list.currentIndex())
+        #print("-1", oldText)
+        if "*" in oldText:
+            oldText = oldText[:-1]
+        list.setItemText(list.currentIndex(), oldText)
+        #print("list text", list.currentText())
+        self.prevIndex = list.currentIndex()
+        self.isDirty = False
+        self.isSaved = True
+        self.loaded = True
+        
+    def initLoad(self, widget):
+        self.isDirty = False
+        widget.addItem("Load Script")
+        scripts = os.listdir(scriptFolder)
+        if "users.txt" in scripts:
+            u = scripts.index("users.txt")
+            scripts.pop(u)
+        widget.addItems(scripts)
+        widget.addItem("Save Script")      
+        self.isDirty = False
+        self.isSaved = True
+        self.loaded = True
+        
+    def save(self):
+        saveBtn = self.findChild(QtWidgets.QPushButton, "saveBtn")
+        stringObj = self.findChild(QtWidgets.QLineEdit, "stringObj")
+        list = self.findChild(QtWidgets.QComboBox, "loadList")
+        box = self.findChild(QtWidgets.QPlainTextEdit, "textBox")
+        errorMsg = "Enter a file name"
+        retry = ["", errorMsg]
+        if saveBtn.text() == 'Save':
+
+           if not os.path.isdir(scriptFolder):
+                os.mkdir(scriptFolder)
+              
+           if stringObj.text() not in retry:
+                newfile = os.path.join(scriptFolder, stringObj.text() + ".py")
+                f = open(newfile, "w")
+                lines = box.document().toPlainText().split("\n")
+        
+                for l in lines:
+                    f.write(l+'\n')
+                f.close()
+                
+                list.clear()
+                self.initLoad(list)
+                files = os.listdir(scriptFolder)
+                i = files.index(stringObj.text() + ".py")
+                list.setCurrentIndex(i+1)
+                
+           else:
+                stringObj.setText(errorMsg)
+        elif saveBtn.text() == 'Delete':       
+            rem = os.path.join(scriptFolder, list.currentText())
+
+            if os.path.isfile(rem):
+                try:
+                    os.remove(rem)
+                except:
+                    print("Exception")
+                    pass
+            list.clear()
+            self.initLoad(list)
+            saveBtn.setText("Save")
+            saveBtn.setEnabled(False)
+            stringObj.setEnabled(False)
+        elif saveBtn.text() == 'Clear':  
+            box.clear()
+        
+        self.isDirty = False
+        self.isSaved = True
+                
+    def run(self):
+        f = open(tempScript, "w")
+        box = self.findChild(QtWidgets.QPlainTextEdit, "textBox")
+        lines = box.document().toPlainText().split("\n")
+
+        for l in lines:
+            f.write(l+'\n')
+
+        f.close()
+        
+        ### This is the temp python script we create on disk and reload it to run it
+        import houScriptEditor
+        reload(houScriptEditor)
+    
+#    def reset(self):
+#        self.recipient.setStyleSheet("color:white")
+    
+#    def loadUsers(self):    
+#        users = os.path.join(scriptFolder, "users.txt")
+#        self.recipient.clear()
+#        f = open(users, "r")
+#        if len(f.readlines()):
+#            for u in f.readlines()[0].split(" "):
+#                if u != "":
+#                    self.recipient.addItem(u)
+        
+        
+#    def saveUser(self, user):
+#        users = os.path.join(scriptFolder, "users.txt")
+#        if not os.path.isfile(users):
+#            f = open(users, 'w')
+#            f.write(user + " ")
+#            f.close()
+#        else:
+#            f = open(users, 'a+')
+#            lines = f.readlines()
+#
+#            if user not in lines[0].split(" "):
+#                f.write(user + " ")
+#            f.close()
+#            self.recipient.addItem(user)
+#            #self.loadUsers()
+        
+        
+            
+#    def send(self):
+#        #check the user is valid
+#        r = self.recipient.currentText()
+#        if kit.get_user(r) is not None:
+#            self.saveUser(r)
+#            stringObj = self.findChild(QtWidgets.QLineEdit, "stringObj").text() + ".py"
+#            file = os.path.join(scriptFolder, stringObj)
+#            list = self.findChild(QtWidgets.QComboBox, "loadList")
+#            box = self.findChild(QtWidgets.QPlainTextEdit, "textBox")
+#            
+#            #save before we send
+#            scripts = os.listdir(scriptFolder)
+#            curScript = "*" + list.currentText() + "*"
+#            if fnmatch.filter(scripts, curScript):
+#                f = open(file, "w")
+#                lines = box.document().toPlainText().split("\n")
+#                for l in lines:
+#                    f.write(l+'\n')
+#
+#                f.close()
+#                
+#                list.clear()
+#                self.initLoad(list)
+#                files = os.listdir(scriptFolder)
+#                if "users.txt" in files:
+#                    index = files.index("users.txt")
+#                    files.pop(index)
+#
+#                i = files.index(stringObj)
+#                list.setCurrentIndex(i+1)
+#            
+#                machines = kit.get_user(r).machines.split(",")
+#    
+#                script_dir = "/hosts/{0}/user_data/temp/houdiniPyEditorScripts".format(os.environ["HOST"])
+#                src = os.path.join(script_dir, list.currentText())
+#                
+#                for m in machines:
+#                    dest = "/hosts/{0}/user_data/temp/houdiniPyEditorScripts".format(m)
+#    
+#                    if not os.path.isdir(dest):
+#                        try:
+#                           os.makedirs(dest)
+#                        except:
+#                            pass
+#                    try:
+#                       shutil.copy(src, dest)
+#                       print("{0} copied to {1} at {2}".format(list.currentText(), r, m)) 
+#                    except:
+#                       print("Error copying {0} to {1}".format(list.currentText(), m)) 
+#                       pass
+#
+#            else:
+#                print("Save before sending")
+#        else:
+#            print("User not found")
+#            self.recipient.setStyleSheet("color:red")
+            
+editorWidget = PythonScriptEditor()        
+        
+def onCreateInterface():
+    global editorWidget
+    return editorWidget
+]]></script>
+    <includeInToolbarMenu menu_position="114" create_separator="false"/>
+    <help><![CDATA[]]></help>
+  </interface>
+</pythonPanelDocument>
