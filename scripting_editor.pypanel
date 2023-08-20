@@ -24,20 +24,26 @@
 # SAMPLE CODE
 #
 import shutil, os, fnmatch
+import platform, importlib
+windows = False
+if platform.system() == 'Windows':
+    windows = True
 
 from hutil.Qt import QtWidgets
 try:
     import pyEditorStylesheet as stylesheet
-    reload(pyEditorStylesheet)
+    importlib.reload(pyEditorStylesheet)
 
 except:
     pass
     
 import sys, os
-sys.path.append("/user_data/temp/")
 
-tempScript = "/user_data/temp/houScriptEditor.py"
-scriptFolder = "/user_data/temp/houdiniPyEditorScripts"
+homedir = os.path.expanduser('~')
+tempPath = os.path.join(homedir, "Documents")
+tempScript = os.path.join(homedir, "houScriptEditor.py")
+scriptFolder = os.path.join(homedir, "houdiniPyEditorScripts")
+sys.path.append(homedir)
 
 if not os.path.isdir(scriptFolder):
     os.makedirs(scriptFolder)
@@ -251,7 +257,7 @@ class PythonScriptEditor(QtWidgets.QWidget):
         
         ### This is the temp python script we create on disk and reload it to run it
         import houScriptEditor
-        reload(houScriptEditor)
+        importlib.reload(houScriptEditor)
       
 editorWidget = PythonScriptEditor()        
         
