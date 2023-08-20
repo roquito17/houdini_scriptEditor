@@ -58,6 +58,7 @@ class PythonScriptEditor(QtWidgets.QWidget):
         self.init = True
 
         textBox = QtWidgets.QPlainTextEdit()
+        textBox.setTabStopWidth(20)
         longline = ""
         if os.path.exists(tempScript):
             f = open(tempScript, "r")
